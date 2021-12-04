@@ -1,0 +1,1 @@
+$uno#ENTERO[10] LLAVE PRIMARIA;CARACTER[100];DECIMAL[10]#id;nombre;edad#1;Juan;10#

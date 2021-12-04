@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <dirent.h>
+#include <iomanip>
 
 using namespace std;
 
@@ -58,6 +59,7 @@ string Lectura(string basedatos);
 string prepararTabla(string nombre, vector<string> lista);
 string obtenerTabla(string nombre);
 string quitarVariables(string nombre);
+string ubicacion();
 void crearArchivoUsuarios();
 void escribir(string texto,string texto2);
 void entrada();
@@ -130,7 +132,8 @@ class Usuarios{
         void setPrivilegios(bool priv){this->Privilegios=priv;}
 };
 Usuarios ObtenerUsuario(int num){
-    string cadena = "BD/UwuDB.sql";
+    string carpeta = ubicacion();
+    string cadena = carpeta+"/UwuDB.sql";
     /////////////////////////////////////////////
     string texto=leer(cadena);
     ////////////////////////////////////////////////
@@ -186,6 +189,7 @@ Usuarios ObtenerUsuario(int num){
 //*************************************************************************************************************
 int main()
 {
+    string carpeta = ubicacion();
     bool pasar=false, validarPuerto=true, corrupto=false;
     int nP=0;
     do{
@@ -289,7 +293,8 @@ int main()
     }else{
         limpiaPantalla();
         //comprobar si hay archivo de usuario en la carpeta
-        if(comprobar("BD/UwuDB")){
+        string direccion=carpeta+"/UwuDB";
+        if(comprobar(direccion)){
             //leer archivo
             if(cant_Usuarios()>=1){
                 if(login()){
@@ -605,7 +610,8 @@ int ListaTokens(string cadena){
 //---------------------------------------
 //FUNCIONES TIENEN QUE VER CON LOS USUARIOS
 int cant_Usuarios(){
-    string cadena = "BD/UwuDB.sql";
+    string url=ubicacion();
+    string cadena = url+"/UwuDB.sql";
     string texto=leer(cadena);
     char arreglo[texto.length()+1];
     strcpy(arreglo, texto.c_str());
@@ -624,6 +630,7 @@ int cant_Usuarios(){
     return cantidad;
 }
 bool crearAdmin(){
+    string url=ubicacion()+"/UwuDB.sql";
     string r;
     string usuario;
     string contra;
@@ -641,7 +648,7 @@ bool crearAdmin(){
         /////////////////////////////////////////////////////////////////////
         string cadena=usuario+";"+contra+";1;1;1;1;1;1;1#";
         ////////////////////////////////////////////////////////////////////
-        escribir("BD/UwuDB.sql",cadena);
+        escribir(url,cadena);
         cout<<"Usuario creado"<<endl;
         return true;
     }else if((r=="n")||(r=="N")){
@@ -738,14 +745,18 @@ void insertar(string cadena){
                                     datosParaInsercion.push_back(datos[i]);
                                 }
                             }
-                            //datosParaInsercion CONTIENE LOS DATOS VALIDOS PARA INSERTAR
+                            //datos ParaInsercion CONTIENE LOS DATOS VALIDOS PARA INSERTAR
                             string cadenaInsercion=datosParaInsercion[0];
                             for(int i=1;i<datosParaInsercion.size();i++){
                                 cadenaInsercion+=";"+datosParaInsercion[i];
                             }
                             cadenaInsercion+="#";
                             //LLEGAMOS HASTA AQUI Y TODO ES VALIDO, PROCEDEMOS A INSERTAR LOS VALORES
-                            insertarEnTabla(argumento3,cadenaInsercion,datosParaInsercion[0],parte2);
+                            if(_InsertFila){
+                                insertarEnTabla(argumento3,cadenaInsercion,datosParaInsercion[0],parte2);
+                            }else{
+                                cout<<"Lo sentimos pero este usuario no tiene los permisos de insercion"<<endl;
+                            }
                         }else{
                             cout<<"No se pudieron insertar los valores!"<<endl;
                         }
@@ -794,7 +805,8 @@ void usar(string cadena){
         }else{
             if(a[argumento2.length()+5]==';'){
             if(ListaTokens(convertirMayusculas(argumento2))==0){
-            if(comprobar("BD/"+argumento2)){
+            string enlaceBD=ubicacion()+"/";
+            if(comprobar(enlaceBD+argumento2)){
                 _dataBase=argumento2;
                 cout<<"Base de datos " <<'"'<<_dataBase<<'"'<<" seleccionada"<<endl;
             }else{
@@ -945,16 +957,31 @@ void crear(string cadena){
                             for(int i=0;i<cadena3.length();i++){
                                 if(arreglo3[i]==39)comilla=true;
                                 if(arreglo3[i]==' ')masDuna=true;}
-                            if(comilla)cout<<"Error! contrase�a no valida. mala inplementacion de comillas '"<<endl;
+                            if(comilla)cout<<"Error! contrasena no valida. mala implementacion de comillas '"<<endl;
                             else if(masDuna)cout<<"la clave no puede tener espacios"<<endl;
                             else if(cadena3=="")cout<<"Error! no se detecto la clave!"<<endl;
                             else {
                                 if(_Crear){
-                                ////////////////////////////////////////////////////////////////////////////////////
-                                string cadena_usuario=argumento3+";"+cadena3+";0;0;0;0;0;0;0#";
-                                ////////////////////////////////////////////////////////////////////////////////////
-                                escribir("BD/UwuDB.sql",cadena_usuario);
-                                cout<<"Usuario "<<'"'<<argumento3<<'"'<<" creado"<<endl;
+                                string temporal=_dataBase;
+                                _dataBase="UwuDB";
+                                vector<string> nombresU = obtenerListaId("USUARIOS");
+                                bool Urepetido=false;
+                                for(int i=0;i<nombresU.size();i++){
+                                    if(argumento3==nombresU[i]){
+                                        Urepetido = true;
+                                    }
+                                }
+                                if(Urepetido){
+                                    cout<<"No se pudo crear el usuario por que ya se encuentra registrado"<<endl;
+                                }else{
+                                    ////////////////////////////////////////////////////////////////////////////////////
+                                    string cadena_usuario=argumento3+";"+cadena3+";0;0;0;0;0;0;0#";
+                                    ////////////////////////////////////////////////////////////////////////////////////
+                                    string enlaceBD=ubicacion()+"/UwuDB.sql";
+                                    escribir(enlaceBD,cadena_usuario);
+                                    cout<<"Usuario "<<'"'<<argumento3<<'"'<<" creado"<<endl;
+                                }
+
                                 }else{
                                     cout<<"El usuario "<<'"'<<_nombre<<'"'<<" no cuenta con los permisos necesarios"<<endl;
                                 }
@@ -1042,7 +1069,11 @@ void crear(string cadena){
                                 //la variable -> "interior" posee los parametros de la creacion de la tabla ( parametros )
                                 if(evaluarTabla(interior,argumento3)){
                                     //SI EVALUAR TABLA DEVUELVE VERDADERO SIGNIFICA QUE TODA LA CADENA INGRESADA ES VALIDA
-                                    crearTabla(argumento3,interior,cadenaParte2);
+                                    if(_Crear){
+                                        crearTabla(argumento3,interior,cadenaParte2);
+                                    }else{
+                                        cout<<"Este usuario no cuenta con los permisos necesarios para crear tablas"<<endl;
+                                    }
                                 }else{
                                     cout<<"No se pudo crear la tabla "<<argumento3<<endl;
                                 }
@@ -1089,13 +1120,14 @@ void eliminar(string cadena){
     }
     if(cadena.length()==9){
         cout<<"Error! no se detectaron datos a eliminar"<<endl;
+        cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
     }else{
         string argumento2 = obtenerPalabra(cadena,2);
-
         if(ListaTokens(argumento2)==103){
             //ELIMINAR TABLA
             if(cadena.length()==15){
                 cout<<"Error! ingrese el nombre de la tabla que desea eliminar"<<endl;
+                cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
             }else{
                 string argumento3 = obtenerPalabra(cadena,3);
                 if(ListaTokens(argumento3)==0){
@@ -1128,9 +1160,13 @@ void eliminar(string cadena){
                                     if(insersionFinal==""){
                                         insersionFinal=" ";
                                     }
-                                    string link="BD/"+_dataBase+".sql";
-                                    reemplazar(link,insersionFinal);
-                                    cout<<"Tabla "<<'"'<<argumento3<<'"'<<" eliminada exitosamente"<<endl;
+                                    string link=ubicacion()+"/"+_dataBase+".sql";
+                                    if(_ElimTabYBd){
+                                        reemplazar(link,insersionFinal);
+                                        cout<<"Tabla "<<'"'<<argumento3<<'"'<<" eliminada exitosamente"<<endl;
+                                    }else{
+                                        cout<<"Este usuario no cuenta con los permisos para eliminar tablas"<<endl;
+                                    }
                                     if(parte2!=""){
                                         evaluar(parte2);
                                     }
@@ -1142,20 +1178,25 @@ void eliminar(string cadena){
                             }
                         }else{
                             cout<<"Error! no hay ninguna base de datos seleccionada"<<endl;
+                            cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                         }
                     }else{
                         cout<<"Error! "<<'"'<<parte1<<'"'<<" contiene demasiados argumentos"<<endl;
+                        cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                     }
                 }else if(ListaTokens(argumento3)==-1){
                     cout<<"Error! "<<'"'<<argumento3<<'"'<<" contiene caracteres no validos"<<endl;
+                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                 }else{
                     cout<<"Error! "<<'"'<<argumento3<<'"'<<" no valido para ELIMINAR"<<endl;
+                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                 }
             }
         }else if(ListaTokens(argumento2)==106){
             //ELIMINAR REGISTRO
             if(cadena.length()==12){
                 cout<<"Error! falta el nombre de la tabla"<<endl;
+                cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
             }else{
                 string argumento3 = obtenerPalabra(cadena,3);
                 if(ListaTokens(argumento3)==0){
@@ -1170,11 +1211,13 @@ void eliminar(string cadena){
                         if(aprobar){
                             if(cadena.length()==13+argumento3.length()){
                                 cout<<"Error! se esperaba "<<'"'<<"LLAVE"<<'"'<<endl;
+                                cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                             }else{
                                 string argumento4 = obtenerPalabra(cadena,4);
                                 if(ListaTokens(argumento4)==304){
                                     if(cadena.length()==19+argumento3.length()){
                                         cout<<"Error! ingrese a continuacion el valor de la llave primaria de la fila que desea eliminar"<<endl;
+                                        cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                                     }else{
                                         string argumento5 = obtenerPalabra(cadena,5);
                                         if(cadena.length()==(20+argumento3.length()+argumento5.length())){
@@ -1200,24 +1243,32 @@ void eliminar(string cadena){
                                                     }
                                                 }
                                                 if(pasar){
-                                                    eliminarFila(argumento3,argumento5);
-                                                    if(parte2!=""){
-                                                    evaluar(parte2);
+                                                    if(_ElimFila){
+                                                        eliminarFila(argumento3,argumento5);
+                                                        if(parte2!=""){
+                                                        evaluar(parte2);
+                                                        }
+                                                    }else{
+                                                        cout<<"Este usuario no cuenta con los permisos para eliminar registros"<<endl;
                                                     }
                                                 }else{
                                                     cout<<"No se encontro ningun resistro con la llave primaria "<<'"'<<argumento5<<'"'<<endl;
                                                 }
                                             }else{
                                                 cout<<"Error! se detectaron caracteres no validos en "<<'"'<<argumento5<<'"'<<endl;
+                                                cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                                             }
                                         }else{
                                             cout<<"Error! se detectaron demasiados argumentos en la solicitud"<<endl;
+                                            cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                                         }
                                     }
                                 }else if(ListaTokens(argumento4)==-1){
                                     cout<<"Error! "<<'"'<<argumento4<<'"'<<" contiene caracteres invalidos"<<endl;
+                                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                                 }else{
                                     cout<<"Error! "<<'"'<<argumento4<<'"'<<" no valido para ELIMINAR"<<endl;
+                                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                                 }
                             }
                         }else{
@@ -1225,16 +1276,19 @@ void eliminar(string cadena){
                         }
                     }else{
                         cout<<"Alerta! no se detecto ninguna base de datos seleccionada, seleccione una para continuar"<<endl;
+                        cout<<"Intente con "<<'"'<<"INFO USAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"USAR"<<'"'<<endl;
                     }
                 }else if(ListaTokens(argumento3)==-1){
                     cout<<"Error! "<<'"'<<argumento3<<'"'<<" contiene caracteres invalidos"<<endl;
+                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                 }else{
                     cout<<"Error! "<<'"'<<argumento3<<'"'<<" no es valido para eliminar"<<endl;
+                    cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
                 }
             }
         }else if((ListaTokens(argumento2)==101)||(ListaTokens(argumento2)==105)){
             //ELIMINAR BASE DE DATOS
-            string contenido = muestra_contenido_de("BD");
+            string contenido = muestra_contenido_de(ubicacion());
             char b[contenido.length()+1];
             strcpy(b, contenido.c_str());
             string archivos="";
@@ -1287,11 +1341,15 @@ void eliminar(string cadena){
                 cout<<"2. No"<<endl;
                 getline(cin, respuesta);
                 if((convertirMayusculas(respuesta) == "SI")||(respuesta=="1")||(convertirMayusculas(respuesta) == "SI;")||(respuesta=="1;")){
-                    string eliminacion="rm BD/"+argumento3+".sql";
+                    string eliminacion="rm "+ubicacion()+"/"+argumento3+".sql";
                     char elim[eliminacion.length()+1];
                     strcpy(elim,eliminacion.c_str());
-                    system(elim);
-                    cout<<'"'<<argumento3<<'"'<<" eliminada exitosamente"<<endl;
+                    if(_ElimTabYBd){
+                        system(elim);
+                        cout<<'"'<<argumento3<<'"'<<" eliminada exitosamente"<<endl;
+                    }else{
+                        cout<<"Este usuario no cuenta con los permisos para eliminar bases de datos"<<endl;
+                    }
                 }else{
                     cout<<"No se elimino la base de datos "<<argumento3<<endl;
                 }}else{
@@ -1302,8 +1360,10 @@ void eliminar(string cadena){
             }
         }else if(ListaTokens(argumento2)==-1){
             cout<<"Error! "<<'"'<<argumento2<<'"'<<" contiene caracteres no validos"<<endl;
+            cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
         }else{
             cout<<"Error! "<<'"'<<argumento2<<'"'<<" no valido para ELIMINAR"<<endl;
+            cout<<"Intente con "<<'"'<<"INFO ELIMINAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"ELIMINAR"<<'"'<<endl;
         }
     }
 }
@@ -1336,7 +1396,8 @@ void ver(string cadena){
                        cout<<"Intente con "<<'"'<<"USAR baseEjemplo;"<<'"'<<endl;
                        cout<<"Intente con "<<'"'<<"INFO VER;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"VER"<<'"'<<endl;
                     }else{
-                        if((_dataBase=="UwuDB")&&(convertirMayusculas(argumento3)=="USUARIOS")){
+                        if(_Leer){
+                            if((convertirMayusculas(_dataBase)=="UWUDB")&&(convertirMayusculas(argumento3)=="USUARIOS")){
                             cout<<"\n**********************"<<endl;
                             cout<<"\tUSUARIOS"<<endl;
                             cout<<"**********************"<<endl;
@@ -1345,7 +1406,8 @@ void ver(string cadena){
                             }
                             cout<<"**********************"<<endl;
                         }else{
-                            if(leer("BD/"+_dataBase+".sql")==" "){
+                            string urlDB=ubicacion();
+                            if(leer(urlDB+"/"+_dataBase+".sql")==" "){
                                 cout<<"Error! la tabla "<<'"'<<argumento3<<'"'<<" no existe"<<endl;
                             }else{
                                 vector<string> nombresT = nombresTablas();
@@ -1356,7 +1418,6 @@ void ver(string cadena){
                                     }
                                 }
                                 if(paso){
-
                                     traducir(quitarVariables(argumento3));
                                 }else{
                                     cout<<"Error! la tabla "<<'"'<<argumento3<<'"'<<" no existe"<<endl;
@@ -1369,6 +1430,9 @@ void ver(string cadena){
                                 sobrante+=a[i];
                             }
                             evaluar(limpiarCadena(sobrante));
+                        }
+                        }else{
+                            cout<<"Este usuario no cuenta con los permisos para ver las tablas"<<endl;
                         }
                     }
 
@@ -1409,7 +1473,11 @@ void ejecutar(string cadena){
         }
         char c[aa.length()];
             strcpy(c, aa.c_str());
-    system(c);
+        if(_Crear&&_ElimTabYBd&&_ElimFila&&_InsertFila&&_Leer&&_Actualizar&&_Privilegios){
+            system(c);
+        }else{
+            cout<<"ALERTA!!! El comando ejecutar solo esta disponible para los usuarios administradores!"<<endl;
+        }
     }
 }
 void renombrar(string cadena){
@@ -1485,7 +1553,7 @@ void listar(string cadena){
             }else if((cadena.length()==(8+argumento2.length()))&&(a[7+argumento2.length()]==';')){
             	//recive los nombres de los archivos que se encuentran en la carpeta de base de datos
             	//pero con 3 puntos antes y todos los nombres concatenados, asi que hay que limpiarlos
-            	string contenido = muestra_contenido_de("BD");
+            	string contenido = muestra_contenido_de(ubicacion());
             	char b[contenido.length()+1];
                 strcpy(b, contenido.c_str());
                 string archivos="";
@@ -1523,14 +1591,18 @@ void listar(string cadena){
                     }
                     total++;
                     }}}
-
-                cout<<"\n******************************"<<endl;
-                cout<<"\tBASES DE DATOS"<<endl;
-                cout<<"******************************"<<endl;
-                for(int i=0;i<total;i++){
-                    cout<<"\t"<<baseLimpia[i]<<endl;
+                if(_Leer){
+                    cout<<"\n******************************"<<endl;
+                    cout<<"\tBASES DE DATOS"<<endl;
+                    cout<<"******************************"<<endl;
+                    for(int i=0;i<total;i++){
+                        cout<<"\t"<<baseLimpia[i]<<endl;
+                    }
+                    cout<<"******************************\n"<<endl;
+                }else{
+                    cout<<"El usuario no cuenta con los permisos necesarios"<<endl;
                 }
-                cout<<"******************************\n"<<endl;
+
             }else{
                 string eval = "";
                 for(int i=10;i<cadena.length();i++){
@@ -1543,14 +1615,19 @@ void listar(string cadena){
                 cout<<"No hay base de datos seleccionada intente con "<<'"'<<"USAR NombreBaseDatos"<<'"'<<endl;
                 cout<<"Intente con "<<'"'<<"INFO USAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"USAR"<<'"'<<endl;
             }else{
-                vector<string> lista = nombresTablas();
-                cout<<"\n******************************"<<endl;
-                cout<<"\tTABLAS"<<endl;
-                cout<<"******************************"<<endl;
-                for(int i=0;i<lista.size();i++){
-                    cout<<"\t"<<lista[i]<<endl;
+                if(_Leer){
+                    vector<string> lista = nombresTablas();
+                    cout<<"\n******************************"<<endl;
+                    cout<<"\tTABLAS"<<endl;
+                    cout<<"******************************"<<endl;
+                    for(int i=0;i<lista.size();i++){
+                        cout<<"\t"<<lista[i]<<endl;
+                    }
+                    cout<<"******************************\n"<<endl;
+                }else{
+                    cout<<"El usuario no cuenta con los permisos necesarios"<<endl;
                 }
-                cout<<"******************************\n"<<endl;
+
             }
         }else if(ListaTokens(argumento2)==-1){
             cout<<"Error! caracteres invalidos en "<<'"'<<argumento2<<'"'<<endl;
@@ -1593,7 +1670,7 @@ void info(string cadena){
                 case 3: //info editar;
                     cout << "Ediat Registros, tablas y bases de datos segun sea nesesario:\n"<<endl;
                     //AQUI HARIA FALTA EL FORMATO DE elminiar de cada uno
-                    cout <<"EDITAR ....." << endl;
+                    cout <<"EDITAR...   " << endl;
                     if(parte2!=""){
                         evaluar(parte2);
                     }
@@ -1601,7 +1678,12 @@ void info(string cadena){
                 case 4: //info eliminar;
                     cout << "Eliminar Registros, tablas y bases de datos segun sea nesesario:\n"<<endl;
                     //AQUI HARIA FALTA EL FORMATO DE elminiar de cada uno
-                    cout <<"ELIMINAR ....." << endl;
+                    cout <<"ELIMINAR Registros de una TABLA:" << endl;
+                    cout <<"ELIMINAR EN nombre_tabla LLAVE id_registro;\n"<<endl;
+                    cout <<"ELIMINAR una TABLA de una BASE DE DATOS:" << endl;
+                    cout <<"ELIMINAR TABLA nombre_tabla;\n"<<endl;
+                    cout <<"ELIMINAR una BASE DE DATOS:" << endl;
+                    cout <<"ELIMINAR BD nombre_base_datos;"<<endl;
                     if(parte2!=""){
                         evaluar(parte2);
                     }
@@ -1713,8 +1795,8 @@ void infoTabla(){
 //---------------------------------------
 //FUNCIONES QUE TIENEN QUE VER CON BASEDATOS
 void crearBaseDeDatos(string entrada){
-    string entrada2="BD/";
-    if(comprobar("BD/"+entrada)){
+    string entrada2=ubicacion()+"/";
+    if(comprobar(entrada2+entrada)){
         cout<<"La base de datos "<<'"'<<entrada<<'"'<<" ya existe"<<endl;
     }else{
         cout<<"Base de datos "<<'"'<<entrada<<'"'<<" creada"<<endl;
@@ -1728,9 +1810,9 @@ void crearBaseDeDatos(string entrada){
     }
 }
 void cambiarNombreBD(string nombre1, string nombre2){
-    if(comprobar("BD/"+nombre1)){
+    if(comprobar(ubicacion()+"/"+nombre1)){
         //LINUX
-        string comando="mv BD/"+nombre1+".sql BD/"+nombre2+".sql ";
+        string comando="mv "+ubicacion()+"/"+nombre1+".sql "+ubicacion()+"/"+nombre2+".sql ";
         char a[comando.length()];
         strcpy(a, comando.c_str());
         system(a);
@@ -1930,14 +2012,14 @@ bool existeTabla(string nombre){
         if(_dataBase=="UwuDB"){
             cout<<"ALERTA! no se pueden crear tablas nuevas en la base de datos UwuDB seleccione otra base de datos"<<endl;
         }else{
-            string direccion="BD/"+_dataBase+".sql";
+            string direccion=ubicacion()+"/"+_dataBase+".sql";
             if(Lectura(direccion).length()==1){
                 respuesta= false;
             }else{
                 vector<string> lista = nombresTablas();
                 for(int i = 0; i < lista.size(); i++)if(lista[i]==nombre)respuesta=true;
             }
-        }//crear tabla hola(ad entero[34] llave primaria, af decimal[45]);
+        }
     }
     return respuesta;
 }
@@ -2218,7 +2300,7 @@ void insertarEnTabla(string nombre, string cadena, string id, string sobra){
                 insersionFinal+=("$"+listaT[i]+"#");
             }
         }
-        string link="BD/"+_dataBase+".sql";
+        string link=ubicacion()+"/"+_dataBase+".sql";
         reemplazar(link,insersionFinal);
         cout<<"Datos insertados correctamente"<<endl;
         if(sobra!=""){
@@ -2256,7 +2338,7 @@ void eliminarFila(string tabla, string id){
             insersionFinal+=("$"+listaT[i]+"#");
         }
     }
-    string link="BD/"+_dataBase+".sql";
+    string link=ubicacion()+"/"+_dataBase+".sql";
     reemplazar(link,insersionFinal);
     cout<<"Fila eliminada correctamente"<<endl;
 }
@@ -2362,7 +2444,7 @@ string unirCorchetes(string cadena){
         }else{
             corcheteDerecha+=e[i];
         }
-}
+    }
     return corcheteDerecha;
 }
 string convertirMayusculas(string cadena){
@@ -2417,20 +2499,121 @@ string obtenerPalabra(string cadena, int n){
     return resultado;
 }
 void traducir(string cadena){
-    string texto="";
-    char arreglo[cadena.length()+1];
-    strcpy(arreglo, cadena.c_str());
-    for(int i=0;i<cadena.length();i++){
-        if(arreglo[i]=='#'){
-            texto+="\n";
-        }else if(arreglo[i]==';'){
-            texto+="\t";
-        }
-        else{
-            texto+=cadena[i];
+    string nombre="";
+    vector <string> cadenas;
+    int contador=0;
+    int filas=0;
+    while(cadena[contador]!='#'){
+        contador++;
+    }
+    string quitaNombre="";
+    for(int i=contador;i<cadena.length();i++){
+        quitaNombre+=cadena[i];
+        if(cadena[i]=='#'){
+            filas++;
         }
     }
-    cout<<texto <<endl;
+    for(int i=0;i<contador;i++){
+        nombre+=cadena[i];
+    }
+    quitaNombre+="#";
+    string entra="";
+    for(int i=1;i<quitaNombre.length();i++){
+        if(quitaNombre[i]=='#'){
+            cadenas.push_back(entra);
+            entra="";
+        }else{
+            entra+=quitaNombre[i];
+        }
+    }
+    contador=0;
+    for(int i=0;i<cadenas[0].length();i++){
+        if(cadenas[0][i]==';'){
+            contador++;
+        }
+    }
+    contador++;
+    //cadenas contiene las filas y contador el numero de columnas por fila
+
+    int mayores[contador];
+    int bufer[contador];
+    int n=0;
+
+    for(int i=0;i<cadenas.size();i++){
+        string fila=cadenas[i]+";";
+        string entra="";
+        n=0;
+        for(int j=0;j<fila.length();j++){
+            if(fila[j]==';'){
+                if(i==0){
+                    mayores[n]=entra.length();
+                }else{
+                    if(entra.length()>mayores[n]){
+                        mayores[n]=entra.length();
+                    }
+                }
+                n++;
+                entra="";
+            }else{
+                entra+=fila[j];
+            }
+        }
+    }
+    //mayores contiene las longitudes maximas de las columnas
+    int longitud=0;
+    for(int i=0;i<contador;i++){
+        longitud+=mayores[i];
+    }
+    int longitudTotal=longitud+(contador*4)+(contador-1);
+    cout<<"|";
+    for(int i=0;i<longitudTotal;i++){
+        cout<<"-";
+    }
+    cout<<"|"<<endl;
+    if(longitudTotal-nombre.length()<=0){
+        cout<<nombre<<endl;
+    }
+    else{
+        int lados=(longitudTotal-nombre.length())/2;
+        cout<<"|";
+        for(int i=0;i<lados;i++){
+            cout<<" ";
+        }
+        if((lados*2)==longitudTotal-nombre.length()){
+            cout<<nombre;
+        }else{
+            cout<<nombre+" ";
+        }
+        for(int i=0;i<lados;i++){
+            cout<<" ";
+        }
+        cout<<"|"<<endl;
+    }
+    cout<<"|";
+    for(int i=0;i<longitudTotal;i++){
+        cout<<"-";
+    }
+    cout<<"|"<<endl;
+    for(int i=0;i<cadenas.size();i++){
+        string fila=cadenas[i]+";";
+        string entra="";
+        n=0;
+        for(int j=0;j<fila.length();j++){
+            if(fila[j]==';'){
+                cout<< setw(mayores[n]+5) << left << "|  "+entra;
+                n++;
+                entra="";
+            }else{
+                entra+=fila[j];
+            }
+        }
+        cout<<"|\n";
+    }
+    cout<<"|";
+    for(int i=0;i<longitudTotal;i++){
+        cout<<"-";
+    }
+    cout<<"|"<<endl;
 }
 string quitarVariables(string nombre){
 
@@ -2636,7 +2819,7 @@ void reemplazar(string url, string texto){
     file.close();
 }
 vector<string> listaDeTablas(){
-    string palabra="BD/"+_dataBase+".sql";
+    string palabra=ubicacion()+"/"+_dataBase+".sql";
     vector<int> tablas = posicionesIniciales();
     vector<string> lista;
     vector<string> lista2;
@@ -2671,7 +2854,7 @@ vector<string> listaDeTablas(){
     return lista2;
 }
 vector<string> nombresTablas(){
-    string palabra="BD/"+_dataBase+".sql";
+    string palabra=ubicacion()+"/"+_dataBase+".sql";
     vector<int> tablas = posicionesIniciales();
     vector<string> lista;
     for(int i=0;i<tablas.size();i++){
@@ -2702,7 +2885,7 @@ vector<string> nombresTablas(){
     return lista;
 }
 vector<int> posicionesIniciales(){
-    string direccion="BD/"+_dataBase+".sql";
+    string direccion=ubicacion()+"/"+_dataBase+".sql";
     string tabla = Lectura(direccion);
     char tab[tabla.length()+1];
     strcpy(tab, tabla.c_str());
@@ -2712,7 +2895,7 @@ vector<int> posicionesIniciales(){
     return retorno;
 }
 void insertar_Al_Final(string cadena){
-    string direccion="BD/"+_dataBase+".sql";
+    string direccion=ubicacion()+"/"+_dataBase+".sql";
     char arreglo[cadena.length()+1];
     strcpy(arreglo, cadena.c_str());
     char arreglo2[direccion.length()+1];
@@ -2750,23 +2933,30 @@ string Lectura(string basedatos){
     return cadena;
 }
 void crearArchivoUsuarios(){
-    char usuarios[] = "BD/UwuDB.sql";
+    string direccion = ubicacion()+"/UwuDB.sql";
+    char usuarios[direccion.length()+1];
+    strcpy(usuarios, direccion.c_str());
     ofstream file;
     file.open(usuarios);
     file.close();
     ///////////////////////////////////////////////////
     string tab="$USUARIOS#CARACTER[100] LLAVE PRIMARIA;CARACTER[100];ENTERO[1];ENTERO[1];ENTERO[1];ENTERO[1];ENTERO[1];ENTERO[1];ENTERO[1]#NOMBRE;CLAVE;CREAR;ELIM_TABLA;ELIM_FILA;INSERT;VER;ACTUALIZAR;PRIVILEGIOS#";
     ////////////////////////////////////////////////////
-    escribir("BD/UwuDB.sql",tab);
+    escribir(ubicacion()+"/UwuDB.sql",tab);
 }
 bool carpetaBD(){
+    string direccion = "mkdir "+ubicacion();
+    char a[direccion.length()+1];
+    strcpy(a, direccion.c_str());
     bool respuesta = false;
-    if(system("mkdir BD")){
+    if(system(a)){
         respuesta = false;
     }else{
         respuesta = true;
     }
     return respuesta;
 }
-
+string ubicacion(){
+    return "BD";
+}
 //FIN
