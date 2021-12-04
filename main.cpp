@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <iomanip>
+#include "sha256.h"
 
 using namespace std;
 
@@ -60,17 +61,20 @@ string prepararTabla(string nombre, vector<string> lista);
 string obtenerTabla(string nombre);
 string quitarVariables(string nombre);
 string ubicacion();
+string encriptar(string cadena);
+string desencriptar(string cadena);
 void crearArchivoUsuarios();
 void escribir(string texto,string texto2);
 void entrada();
 void insertarEnTabla(string nombre, string cadena, string id, string sobra);
 void crearTabla(string nombre, string cadena, string sobra);
 void titulo();
-void limpiaPantalla(){system("cls");}
+void limpiaPantalla(){system("cls || clear");}
 void insertar_Al_Final(string cadena);
 void reemplazar(string url, string texto);
 void traducir(string texto);
 void eliminarFila(string tabla, string id);
+void editarTabla(string tabla, string id, string cadena1, string cadena2, string sobra);
 
 //VARIABLES GLOBALES!!!
 //SE CARGAN LOS PERMISOS DE USUARIO AL MOMENTO DE LOGEARSE
@@ -194,8 +198,8 @@ int main()
     int nP=0;
     do{
         corrupto=false;
-        if(comprobar("config")){
-            string lee=leer("config.sql");
+        if(comprobar("/home/config")){
+            string lee=leer("/home/config.sql");
             char a[lee.length()];
             strcpy(a, lee.c_str());
             if(lee.length()>7){
@@ -232,9 +236,9 @@ int main()
             }
             if(validarPuerto){
                 ofstream file;
-                file.open("config.sql");
+                file.open("/home/config.sql");
                 file.close();
-                escribir("config.sql","puerto: "+puerto);
+                escribir("/home/config.sql","puerto: "+puerto);
                 cout<<"Se definio el puerto "<<'"'<<puerto<<'"'<<" como el puerto de escucha"<<endl;
             }else{
                 cout<<"El puerto "<<'"'<<puerto<<'"'<<" no es un puerto valido, intente con un numero"<<endl;
@@ -262,7 +266,7 @@ int main()
             }
             if(validarPuerto){
                 cout<<"Se definio el puerto "<<'"'<<puerto<<'"'<<" como el puerto de escucha"<<endl;
-                string url="config.sql";
+                string url="/home/config.sql";
                 char link[url.length()];
                 strcpy(link, url.c_str());
                 string entrada="puerto: "+puerto;
@@ -379,13 +383,13 @@ bool login(){
     limpiaPantalla();
     string nombre;
     string clave;
-    cout<<"Bienbenido a UwuDB"<<endl;
+    cout<<"Bienvenido a UwuDB"<<endl;
     cout << "Usuario: ";
     getline(cin, nombre);
     cout << "Clave: ";
     getline(cin, clave);
     for(int i=0;i<cant_Usuarios();i++){
-        if((ObtenerUsuario(i).getNombre()==nombre)&&(ObtenerUsuario(i).getClave()==clave)){
+        if((ObtenerUsuario(i).getNombre()==nombre)&&(ObtenerUsuario(i).getClave()==SHA256::cifrar(clave))){
             _nombre=ObtenerUsuario(i).getNombre();
             _Crear=ObtenerUsuario(i).getCrear();
             _ElimTabYBd=ObtenerUsuario(i).getElimTabYBd();
@@ -646,7 +650,7 @@ bool crearAdmin(){
         cout<<"Digite su clave de usuario: ";
         getline(cin, contra);
         /////////////////////////////////////////////////////////////////////
-        string cadena=usuario+";"+contra+";1;1;1;1;1;1;1#";
+        string cadena=usuario+";"+SHA256::cifrar(contra)+";1;1;1;1;1;1;1#";
         ////////////////////////////////////////////////////////////////////
         escribir(url,cadena);
         cout<<"Usuario creado"<<endl;
@@ -975,7 +979,7 @@ void crear(string cadena){
                                     cout<<"No se pudo crear el usuario por que ya se encuentra registrado"<<endl;
                                 }else{
                                     ////////////////////////////////////////////////////////////////////////////////////
-                                    string cadena_usuario=argumento3+";"+cadena3+";0;0;0;0;0;0;0#";
+                                    string cadena_usuario=argumento3+";"+SHA256::cifrar(cadena3)+";0;0;0;0;0;0;0#";
                                     ////////////////////////////////////////////////////////////////////////////////////
                                     string enlaceBD=ubicacion()+"/UwuDB.sql";
                                     escribir(enlaceBD,cadena_usuario);
@@ -1101,7 +1105,171 @@ void crear(string cadena){
     }
 }
 void editar(string cadena){
-    cout<<"comando editar detectado \n";
+    char a[cadena.length()];
+    strcpy(a, cadena.c_str());
+    int contador=0;
+    string parte1="";
+    string parte2="";
+    for(int i=0;i<cadena.length();i++){
+        if(a[i]==';'){
+            contador++;
+        }
+        if(contador==0){
+            parte1+=a[i];
+        }
+    }
+    if(contador>1){
+        for(int i=parte1.length()+1;i<cadena.length();i++){
+            parte2+=a[i];
+        }
+        cadena=limpiarCadena(parte1+";");
+        parte2=limpiarCadena(parte2);
+    }
+    cadena=limpiarCadena(separarParentesis(cadena));
+    char b[cadena.length()];
+    strcpy(b, cadena.c_str());
+
+    if(cadena.length()==7){
+        cout<<"Error el comando "<<'"'<<"EDITAR"<<'"'<<" necesita mas argumentos"<<endl;
+        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+    }else{
+        string argumento2=obtenerPalabra(cadena,2);
+        if(ListaTokens(argumento2)==0){
+            if(cadena.length()==8+argumento2.length()){
+                cout<<"Error! se esperaba "<<'"'<<"LLAVE"<<'"'<<" luego de "<<argumento2<<endl;
+                cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+            }else{
+                string argumento3=obtenerPalabra(cadena,3);
+                if(ListaTokens(argumento3)==304){
+                    if(cadena.length()==14+argumento2.length()){
+                        cout<<"Error! se esperaba el valor de la llave primaria de los datos a editar"<<endl;
+                        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                    }else{
+                        string argumento4 = obtenerPalabra(cadena,4);
+                        char arg4[argumento4.length()];
+                        strcpy(arg4, argumento4.c_str());
+                        bool pasar = true;
+                        for(int i=0;i<argumento4.length();i++){
+                            if((arg4[i]>=48)&&(arg4[i]<=57)){
+                            }else if((arg4[i]>=65)&&(arg4[i]<=90)){
+                            }else if((arg4[i]>=97)&&(arg4[i]<=122)){
+                            }else if((arg4[i]=='.')||(arg4[i]=='_')||(arg4[i]=='-')||(arg4[i]==',')){
+                            }else{
+                                pasar=false;
+                            }
+                        }
+                        if(pasar){
+                            if(cadena.length()==15+argumento2.length()+argumento4.length()){
+                                cout<<"Error! se esperaban los parametros a editar"<<endl;
+                                cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                            }else{
+                                if(_dataBase!=""){
+                                string argumento5=obtenerPalabra(cadena,5);
+                                if(argumento5=="("){
+                                if(cadena[cadena.length()-2]==')'){
+                                    string interior="";
+                                    for(int i=16+argumento2.length()+argumento4.length();i<cadena.length()-2;i++){
+                                        interior+=cadena[i];
+                                    }
+                                    if(interior==" ) ( "){
+                                        cout<<"Error! no se detectaron los parametros de edicion"<<endl;
+                                        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                    }else{
+                                    int izquierda=0,derecha=0;
+                                    for(int i=0;i<interior.length();i++){
+                                        if(interior[i]=='('){
+                                            izquierda++;
+                                        }
+                                        if(interior[i]==')'){
+                                            derecha++;
+                                        }
+                                    }
+                                    if((izquierda==1)&&(derecha==1)){
+                                        if(interior[1]==')'){
+                                            cout<<"No se detectaron los nombres de las columnas (primer parentesis)"<<endl;
+                                            cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                        }else if(interior[interior.length()-2]=='('){
+                                            cout<<"No se detectaron los nombres de los datos (segundo parentesis)"<<endl;
+                                            cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                        }else{
+                                            //SI LLEGAMOS AQUI EL USUARIO DIGITO EDITAR nombre LLAVE id (#####)(#####);
+                                            //Falta comprobar si el contenido de los parentesis en valido
+                                            vector<string> listaT = nombresTablas();
+                                            bool encontrado=false;
+                                            for(int i=0;i<listaT.size();i++){
+                                                if(argumento2==listaT[i]){
+                                                    encontrado=true;
+                                                }
+                                            }
+                                            if(encontrado){
+                                            encontrado=false;
+                                            vector<string> listaID = obtenerListaId(argumento2);
+                                            for(int i=0;i<listaID.size();i++){
+                                                if(argumento4==listaID[i]){
+                                                    encontrado=true;
+                                                }
+                                            }
+                                            if(encontrado){
+                                                string resultado1="";
+                                                string resultado2="";
+                                                int _contador=0;
+                                                while(interior[_contador]!=')'){
+                                                    resultado1+=interior[_contador];
+                                                    _contador++;
+                                                }
+                                                for(int i=_contador+3;i<interior.length();i++){
+                                                    resultado2+=interior[i];
+                                                }
+                                                editarTabla(argumento2,argumento4,resultado1,resultado2,parte2);
+                                            }else{
+                                                cout<<"Error! no se encontro ningun registro con llave primaria "<<'"'<<argumento4<<'"'<<endl;
+                                            }
+                                            }else{
+                                                cout<<"Error! la tabla "<<'"'<<argumento2<<'"'<<" no existe"<<endl;
+                                            }
+                                        }
+                                    }else if(izquierda>derecha){
+                                        cout<<"Error! falta "<<'"'<<")"<<'"'<<endl;
+                                        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                    }else if(izquierda<derecha){
+                                        cout<<"Error! falta "<<'"'<<"("<<'"'<<endl;
+                                        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                    }else{
+                                        cout<<"Error! se detectaron demasiados parentesis en la peticion"<<endl;
+                                        cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                    }
+
+                                    }
+                                }else{
+                                    cout<<"Error! se esperaba "<<'"'<<")"<<'"'<<" al final de la linea"<<endl;
+                                    cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                }
+                                }else{
+                                    cout<<"Error! "<<'"'<<argumento5<<'"'<<" no valido! en su lugar se esperaba "<<'"'<<"("<<'"'<<endl;
+                                    cout<<"Intente con "<<'"'<<"INFO EDITAR;"<<'"'<<" para ver la lista de argumentos validos para "<<'"'<<"EDITAR"<<'"'<<endl;
+                                }
+                                }else{
+                                    cout<<"No se a seleccionado ninguna base de datos"<<endl;
+                                }
+                            }
+                        }else{
+                            cout<<"Error! se detectaron caracteres invalidos en "<<argumento4<<endl;
+                        }
+                    }
+                }else if(ListaTokens(argumento3)==-1){
+                    cout<<"Error! se detectaron caracteres invalidos en "<<'"'<<argumento3<<'"'<<endl;
+                }else if(ListaTokens(argumento3)==0){
+                    cout<<"Error! no se reconoce "<<'"'<<argumento3<<'"'<<endl;
+                }else{
+                    cout<<"Error! "<<'"'<<argumento3<<'"'<<" no es valido"<<endl;
+                }
+            }
+        }else if(ListaTokens(argumento2)==-1){
+            cout<<"Error! se detectaron caracteres invalidos en "<<'"'<<argumento2<<'"'<<endl;
+        }else{
+            cout<<"Error! "<<'"'<<argumento2<<'"'<<" es una palabra reservada"<<endl;
+        }
+    }
 }
 void eliminar(string cadena){
     char a[cadena.length()];
@@ -1668,9 +1836,8 @@ void info(string cadena){
                     }
                 break;
                 case 3: //info editar;
-                    cout << "Ediat Registros, tablas y bases de datos segun sea nesesario:\n"<<endl;
-                    //AQUI HARIA FALTA EL FORMATO DE elminiar de cada uno
-                    cout <<"EDITAR...   " << endl;
+                    cout << "Editar Registros de una tabla en la base de datos:\n"<<endl;
+                    cout <<"EDITAR nombre_tabla LLAVE id_registro (campo1, campo2,... campoN) (valorNuevo1,valorNuevo2,...,valorNuevoN);\n" << endl;
                     if(parte2!=""){
                         evaluar(parte2);
                     }
@@ -2268,6 +2435,424 @@ vector<string> obtenerListaId(string nombre){
     }
     return id;
 }
+void editarTabla(string tabla, string id, string cadena1, string cadena2, string sobra){
+    cadena1=limpiarCadena(cadena1);
+    cadena2=limpiarCadena(cadena2);
+    vector<string> lista1;
+    vector<string> lista2;
+    if(cadena1[0]==','){
+        cout<<"Error! no se detecta la primer columna: "<<'"'<<","<<'"'<<" al inicio de los parametros"<<endl;
+    }else if(cadena1[cadena1.length()-1]==','){
+        cout<<"Error! no se detecta la ultima columna: "<<'"'<<","<<'"'<<" al final de los parametros"<<endl;
+    }else{
+        //SI ENTRAMOS AQUI SIGNIFICA QUE NO HAY "," AL INICIO O AL FINAL
+        string bloque="";
+        int cantBloques=1;
+        for(int i=0;i<cadena1.length();i++){
+            if(cadena1[i]==','){
+                cantBloques++;
+            }
+        }
+        for(int i=0;i<cadena1.length();i++){
+            if(cadena1[i]==','){
+                lista1.push_back(limpiarCadena(bloque));
+                bloque="";
+            }else if(i==cadena1.length()-1){
+                bloque+=cadena1[cadena1.length()-1];
+                lista1.push_back(limpiarCadena(bloque));
+                bloque="";
+            }else{
+                bloque+=cadena1[i];
+            }
+        }
+        if(cadena2[0]==','){
+        cout<<"Error! no se detecta el primer valor: "<<'"'<<","<<'"'<<" al inicio de los parametros"<<endl;
+    }else if(cadena2[cadena2.length()-1]==','){
+        cout<<"Error! no se detecta el ultimo valor: "<<'"'<<","<<'"'<<" al final de los parametros"<<endl;
+    }else{
+        //SI ENTRAMOS AQUI SIGNIFICA QUE NO HAY "," AL INICIO O AL FINAL
+        string bloque="";
+        int cantBloques=1;
+        for(int i=0;i<cadena2.length();i++){
+            if(cadena2[i]==','){
+                cantBloques++;
+            }
+        }
+        for(int i=0;i<cadena2.length();i++){
+            if(cadena2[i]==','){
+                lista2.push_back(limpiarCadena(bloque));
+                bloque="";
+            }else if(i==cadena2.length()-1){
+                bloque+=cadena2[cadena2.length()-1];
+                lista2.push_back(limpiarCadena(bloque));
+                bloque="";
+            }else{
+                bloque+=cadena2[i];
+            }
+        }
+        vector<string> filas = obtenerFilas(tabla);
+        vector<string> idFilas = obtenerListaId(tabla);
+        string filaSeleccionada;
+        for(int i=0;i<filas.size();i++){
+            if(id==idFilas[i]){
+                filaSeleccionada=filas[i];
+            }
+        }
+        //filaSeleccionada es la fila a editar
+        string tablaCompleta=obtenerTabla(tabla);
+        int contador1=0;
+        while(tablaCompleta[contador1-1]!='#'){
+            contador1++;
+        }
+        int contador2=contador1+1;
+        while(tablaCompleta[contador2-1]!='#'){
+            contador2++;
+        }
+        string tipoVariables="";
+        for(int i=contador1;i<contador2-1;i++){
+            tipoVariables+=tablaCompleta[i];
+        }
+        vector <string> Variables;
+        string bloqueVariable="";
+
+        for(int i=0;i<tipoVariables.length();i++){
+            if(tipoVariables[i]==';'){
+                Variables.push_back(obtenerPalabra(bloqueVariable,1));
+                bloqueVariable="";
+            }else if(i==tipoVariables.length()-1){
+                Variables.push_back(bloqueVariable+tipoVariables[i]);
+                bloqueVariable="";
+            }else{
+                bloqueVariable+=tipoVariables[i];
+            }
+        }
+
+        int contador3=0,cantNumeral=0;
+        while(cantNumeral<2){
+            if(tablaCompleta[contador3]=='#'){
+                cantNumeral++;
+            }
+            contador3++;
+        }
+        string idTablas="";
+        while(tablaCompleta[contador3]!='#'){
+            idTablas+=tablaCompleta[contador3];
+            contador3++;
+        }
+
+        vector <string> IDTABLA;
+        string bloqueIDTABLA="";
+
+        for(int i=0;i<idTablas.length();i++){
+            if(idTablas[i]==';'){
+                IDTABLA.push_back(bloqueIDTABLA);
+                bloqueIDTABLA="";
+            }else if(i==idTablas.length()-1){
+                IDTABLA.push_back(bloqueIDTABLA+idTablas[i]);
+                bloqueIDTABLA="";
+            }else{
+                bloqueIDTABLA+=idTablas[i];
+            }
+        }
+        bool valido=true;
+        vector<bool> encontrado;
+        for(int i=0;i<lista1.size();i++){
+            bool si = false;
+            for(int j=0;j<IDTABLA.size();j++){
+                if(lista1[i]==IDTABLA[j]){
+                    si=true;
+                }
+            }
+            encontrado.push_back(si);
+        }
+        for(int i=0;i<lista1.size();i++){
+            if(!encontrado[i]){
+                cout<<"Error! "<<'"'<<lista1[i]<<'"'<<" no es un nombre de una columna"<<endl;
+                valido=false;
+            }
+        }
+        if(valido){
+            if(hayStringsRepetidos(lista1)){
+                //SI LLEGAMOS AQUI SIGUIFICA QUE LOS DATOS DEL PRIMER PARENTESIS SON CORRECTOS :D
+                //FALTA EVALUAR LOS DATOS DEL SEGUNDO PARENTESIS
+                if(lista2.size()==lista1.size()){
+                    vector<int> N_TOKEN;
+                    for(int i=0;i<lista2.size();i++){
+                        string NombreDeDato=lista2[i];
+                        if(NombreDeDato[0]==39){
+                            if(NombreDeDato[NombreDeDato.length()-1]==39){
+                                bool pasar=true;
+                                for(int j=1;j<NombreDeDato.length()-1;j++){
+                                   if(NombreDeDato[j]>=48 && NombreDeDato[j]<=57){
+                                   }else if((NombreDeDato[j]=='.')||(NombreDeDato[j]==',')||(NombreDeDato[j]=='-')||(NombreDeDato[j]=='_')||(NombreDeDato[j]==32)){
+                                   }else if(NombreDeDato[j]>=65 && NombreDeDato[j]<=90){
+                                   }else if(NombreDeDato[j]>=97 && NombreDeDato[j]<=122){
+                                   }else{
+                                       pasar=false;
+                                   }
+                                }
+                                if(pasar){
+                                    if(NombreDeDato=="'"){
+                                        cout<<"Error! "<<'"'<<" ' "<<'"'<<" no es valido"<<endl;
+                                        N_TOKEN.push_back(-1);
+                                    }else{
+                                        N_TOKEN.push_back(503);
+                                    }
+                                }else{
+                                    N_TOKEN.push_back(-1);
+                                    cout<<"Error! se detectaron caracteres invalidos en "<<'"'<<NombreDeDato<<'"'<<endl;
+                                }
+                            }else{
+                                N_TOKEN.push_back(-1);
+                                cout<<"Error! se esperaba "<<'"'<<" ' "<<'"'<<" al final de "<<'"'<<NombreDeDato<<'"'<<endl;
+                            }
+                        }else if((NombreDeDato[NombreDeDato.length()-1]==39)&&(NombreDeDato[0]!=39)){
+                            N_TOKEN.push_back(-1);
+                            cout<<"Error! se esperaba "<<'"'<<" ' "<<'"'<<" al comienzo de "<<'"'<<NombreDeDato<<'"'<<endl;
+                        }else{
+                            bool VALIDAR=true;
+                            for(int j=0;j<NombreDeDato.length();j++){
+                                if(NombreDeDato[j]>=48 && NombreDeDato[j]<=57){
+                                }else if(NombreDeDato[j]=='.'){
+                                }else{
+                                    VALIDAR=false;
+                                }
+                            }
+                            if(VALIDAR){
+                                int contadorPuntos=0;
+                                for(int j=0;j<NombreDeDato.length();j++){
+                                    if(NombreDeDato[j]=='.'){
+                                        contadorPuntos++;
+                                    }
+                                }
+                                if(contadorPuntos==0){
+                                    N_TOKEN.push_back(501);
+                                }else if(contadorPuntos==1){
+                                    if(NombreDeDato[0]=='.'){
+                                        N_TOKEN.push_back(-1);
+                                        cout<<"Error! "<<'"'<<NombreDeDato<<'"'<<" no valido"<<endl;
+                                    }else if(NombreDeDato[NombreDeDato.length()-1]=='.'){
+                                        N_TOKEN.push_back(-1);
+                                        cout<<"Error! "<<'"'<<NombreDeDato<<'"'<<" no valido"<<endl;
+                                    }else{
+                                        N_TOKEN.push_back(502);
+                                    }
+                                }else{
+                                    N_TOKEN.push_back(-1);
+                                    cout<<"Error! "<<'"'<<NombreDeDato<<'"'<<" no valido"<<endl;
+                                }
+                            }else{
+                                N_TOKEN.push_back(-1);
+                                cout<<"Error! "<<'"'<<NombreDeDato<<'"'<<" no valido"<<endl;
+                            }
+                        }
+                    }
+                        bool continuar=true;
+                        for(int i=0;i<N_TOKEN.size();i++){
+                            if(N_TOKEN[i]==-1){
+                                continuar=false;
+                            }
+                        }
+                        if(continuar){
+                            //SI LLEGAMOS AQUI, LOS TOKENS DE EL SEGUNDO PARENTESIS SON VALIDOS SINTACTICAMENTE
+                            vector<int> IDLISTA1;
+                            for(int i=0;i<lista1.size();i++){
+                                string eval=lista1[i];
+                                for(int j=0;j<IDTABLA.size();j++){
+                                    if(eval==IDTABLA[j]){
+                                        IDLISTA1.push_back(ListaTokens(Variables[j]));
+                                    }
+                                }
+                            }
+                            vector <string> lista2_2;
+                            for(int i=0;i<lista2.size();i++){
+                                string _dato=lista2[i];
+                                if(_dato[0]==39){
+                                    string A="";
+                                    for(int j=1;j<_dato.length()-1;j++){
+                                        A+=_dato[j];
+                                    }
+                                    lista2_2.push_back(limpiarCadena(A));
+                                }else{
+                                    lista2_2.push_back(_dato);
+                                }
+                            }
+                            bool pasar=true;
+                            for(int i=0;i<N_TOKEN.size();i++){
+                                if((IDLISTA1[i]==501)&&(N_TOKEN[i]==501)){
+                                }else if((IDLISTA1[i]==502)&&(N_TOKEN[i]==502)){
+                                }else if((IDLISTA1[i]==503)&&(N_TOKEN[i]==503)){
+                                }else if((IDLISTA1[i]==502)&&(N_TOKEN[i]==501)){
+                                }else{
+                                pasar=false;
+                                cout<<"Error! los tipos de datos no concuerdan! "<<'"'<<lista1[i]<<'"'<<" es ";
+                                if(IDLISTA1[i]==501){
+                                    cout<<"entero";
+                                }else if(IDLISTA1[i]==502){
+                                    cout<<"decimal";
+                                }else{
+                                    cout<<"cadena";
+                                }
+                                cout<<" y "<<'"'<<lista2_2[i]<<'"'<<" es";
+                                if(N_TOKEN[i]==501){
+                                    cout<<" entero";
+                                }else if(N_TOKEN[i]==502){
+                                    cout<<" decimal";
+                                }else{
+                                    cout<<" cadena";
+                                }
+                                cout<<"\n";
+                            }
+                            }
+                        if(pasar){
+                            vector<int> longitudesColumnas;
+                            for(int i=0;i<lista1.size();i++){
+                                string eval=lista1[i];
+                                for(int j=0;j<IDTABLA.size();j++){
+                                if(eval==IDTABLA[j]){
+                                    string variable=Variables[j];
+                                    int contador4=0;
+                                    while(variable[contador4-1]!='['){
+                                        contador4++;
+                                    }
+                                    int contador5=contador4+1;
+                                    while(variable[contador5-1]!=']'){
+                                        contador5++;
+                                    }
+                                    string variable2="";
+                                    for(int i=contador4;i<contador5-1;i++){
+                                        variable2+=variable[i];
+                                    }
+                                    longitudesColumnas.push_back(atoi(variable2.c_str()));
+                                }
+                                }
+                            }
+                            bool ultima=true;
+                            for(int i=0;i<longitudesColumnas.size();i++){
+                                if(lista2_2[i].length()<=longitudesColumnas[i]){
+
+                                }else{
+                                    ultima=false;
+                                    cout<<"Error! con "<<'"'<<lista2_2[i]<<'"'<<" es demasiado grande"<<endl;
+                                    cout<<"la longitud maxima para "<<'"'<<lista1[i]<<'"'<<" es de "<<'"'<<longitudesColumnas[i]<<'"'<<endl;
+                                }
+                            }
+                            if(ultima){
+                                //SI AS LLEGADO AQUI FELICIDADES! TODO EL EL COMANDO PARA EDITAR ES VALIDO :D
+                                vector<string> listaDeFilas = obtenerFilas(tabla);
+                                vector<string> listaDeDatos;
+                                string palabra="";
+                                for(int i=0;i<filaSeleccionada.length();i++){
+                                    if(filaSeleccionada[i]==';'){
+                                        listaDeDatos.push_back(palabra);
+                                        palabra="";
+                                    }else if(i==filaSeleccionada.length()-1){
+                                        listaDeDatos.push_back(palabra+filaSeleccionada[i]);
+                                        palabra="";
+                                    }else{
+                                        palabra+=filaSeleccionada[i];
+                                    }
+                                }
+                            string nuevaFila1="";
+                            for(int i=0;i<IDTABLA.size();i++){
+                                string Lado1=IDTABLA[i];
+                                bool datoColumna=false;
+                                for(int j=0;j<lista1.size();j++){
+                                    if(lista1[j]==Lado1){
+                                        nuevaFila1+=lista2_2[j]+";";
+                                        datoColumna=true;
+                                    }
+                                }
+                                if(!datoColumna){
+                                    nuevaFila1+=listaDeDatos[i]+";";
+                                }
+                            }
+                            string nuevaFila2="";
+                            for(int i=0;i<nuevaFila1.length()-1;i++){
+                                nuevaFila2+=nuevaFila1[i];
+                            }
+                            int contador4=0;
+                            string ID="";
+                            while(nuevaFila2[contador4]!=';'){
+                                ID+=nuevaFila2[contador4];
+                                contador4++;
+                            }
+                            int contador5=0;
+                            string ID2="";
+                            while(filaSeleccionada[contador5]!=';'){
+                                ID2+=filaSeleccionada[contador5];
+                                contador5++;
+                            }
+                            if(ID==""){
+                                cout<<"ALERTA! no se puede dejar el dato de la llave primaria vacio!"<<endl;
+                            }else{
+                                bool idPasar=true;
+                                if(ID2==ID){
+                                }else{
+                                    for(int i=0;i<idFilas.size();i++){
+                                        if(ID==idFilas[i]){
+                                            idPasar=false;
+                                        }
+                                    }
+                                }
+                                if(idPasar){
+                                    int contador6=0;
+                                    int contador7=0;
+                                    string preparaTabla="";
+                                    while(contador7!=3){
+                                        if(tablaCompleta[contador6]=='#'){
+                                            contador7++;
+                                        }
+                                        preparaTabla+=tablaCompleta[contador6];
+                                        contador6++;
+                                    }
+                                    for(int i=0;i<filas.size();i++){
+                                        if(filas[i]==filaSeleccionada){
+                                            preparaTabla+=nuevaFila2+"#";
+                                        }else{
+                                            preparaTabla+=filas[i]+"#";
+                                        }
+                                    }
+                                    //preparaTabla contiene la nueva tabla
+                                    vector<string> TODAS_LAS_TABLAS = listaDeTablas();
+                                    vector<string> nombresT = nombresTablas();
+                                    string baseDeDatos="";
+                                    for(int i=0;i<TODAS_LAS_TABLAS.size();i++){
+                                        if(nombresT[i]==tabla){
+                                            baseDeDatos+="$"+preparaTabla;
+                                        }else{
+                                            baseDeDatos+="$"+TODAS_LAS_TABLAS[i]+"#";
+                                        }
+                                    }
+                                    string link=ubicacion()+"/"+_dataBase+".sql";
+                                    reemplazar(link,baseDeDatos);
+                                    cout<<"Datos actualizados correctamente"<<endl;
+                                    if(sobra!=""){
+                                        evaluar(sobra);
+                                    }
+                                }else{
+                                    cout<<"Error! no se puede reemplazar "<<'"'<<ID2<<'"'<<" por "<<'"'<<ID<<'"'<<endl;
+                                    cout<<"El dato ya se encuentra listado"<<endl;
+                                }
+                            }
+                            }
+                        }
+                        }
+                        //editar dificil llave 3 (id,decimales,nombre,numero,apellido)(133,12.8,'kevin',1,' monroy  ');
+                }else if(lista2.size()>lista1.size()){
+                    cout<<"Error! se detectaron demasiados datos a editar. \nverifique que la candidad de datos en el lado izquierdo concuerde con el derecho"<<endl;
+                }else{
+                    cout<<"Error! faltan datos a editar. \nverifique que la candidad de datos en el lado izquierdo concuerde con el derecho"<<endl;
+                }
+            }else{
+                cout<<"Error! se detectaron datos repetidos en la peticion del parentesis de la izquierda!"<<endl;
+            }
+        }else{
+            cout<<"No se pudo editar "<<'"'<<tabla<<'"'<<endl;
+        }
+
+
+}}}
 //FIN         FUNCIONES QUE TIENEN QUE VER CON TABLAS
 
 //---------------------------------------
@@ -2608,6 +3193,16 @@ void traducir(string cadena){
             }
         }
         cout<<"|\n";
+        if(i==0){
+
+            cout<<"|";
+            for(int k=0;k<longitudTotal;k++){
+                cout<<"-";
+            }
+            cout<<"|"<<endl;
+
+
+        }
     }
     cout<<"|";
     for(int i=0;i<longitudTotal;i++){
@@ -2957,6 +3552,18 @@ bool carpetaBD(){
     return respuesta;
 }
 string ubicacion(){
-    return "BD";
+    return "/home/BD";
+}
+string encriptar(string cadena){
+    string res = "";
+    int llave = 4;
+    for(int i=0; i<cadena.length(); i++) res += cadena[i] + llave;
+    return res;
+}
+string desencriptar(string cadena){
+    string res = "";
+    int llave = 4;
+    for(int i=0; i<cadena.length(); i++) res += cadena[i] - llave;
+    return res;
 }
 //FIN
