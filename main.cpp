@@ -2825,10 +2825,14 @@ void editarTabla(string tabla, string id, string cadena1, string cadena2, string
                                         }
                                     }
                                     string link=ubicacion()+"/"+_dataBase+".sql";
-                                    reemplazar(link,baseDeDatos);
-                                    cout<<"Datos actualizados correctamente"<<endl;
-                                    if(sobra!=""){
-                                        evaluar(sobra);
+                                    if(_Actualizar){
+                                        reemplazar(link,baseDeDatos);
+                                        cout<<"Datos actualizados correctamente"<<endl;
+                                        if(sobra!=""){
+                                            evaluar(sobra);
+                                        }
+                                    }else{
+                                        cout << "el usuario no cuenta con permisos para actualizar registros" << endl;
                                     }
                                 }else{
                                     cout<<"Error! no se puede reemplazar "<<'"'<<ID2<<'"'<<" por "<<'"'<<ID<<'"'<<endl;
@@ -3356,7 +3360,7 @@ string limpiarCadena(string cadena){
 //FIN       FUNCIONES DE PROCESOS
 
 //*************************************************************************************************************
-//**************************************        ARCHIVOS     *************************************************
+//**************************************        ARCHIVOS      *************************************************
 //*************************************************************************************************************
 string leer(string cadena){
     char a[cadena.length()];
@@ -3552,6 +3556,7 @@ bool carpetaBD(){
     return respuesta;
 }
 string ubicacion(){
+    //windows es BD || en linux es /HOME/BD
     return "/home/BD";
 }
 string encriptar(string cadena){
